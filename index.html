@@ -188,10 +188,6 @@
         const FIXED_SPEED = 1.8;
         const keys = {};
 
-        // 📸 背景圖片
-        const trumpImg = new Image();
-        trumpImg.src = 'trump.jpg';
-
         // 💬 底部說明文字資料庫
         const descriptions = {
             'normal': '⚙️ <b>NORMAL GROUND:</b> Safe structured surface. Provides stable friction and allows regular platforming navigation.',
@@ -319,31 +315,35 @@
         });
         window.addEventListener('keyup', e => keys[e.code] = false);
 
-        function drawTrumpBackground() {
-            if (!trumpImg.complete || trumpImg.naturalWidth === 0) {
-                if (bossActive) {
-                    ctx.fillStyle = "rgba(40, 5, 5, 0.5)"; ctx.fillRect(0,0,canvas.width,canvas.height);
-                    ctx.fillStyle = "rgba(150, 0, 255, 0.15)"; ctx.beginPath(); ctx.arc(200, 250, 110 + Math.sin(Date.now()/200)*15, 0, Math.PI*2); ctx.fill();
-                }
-                return; 
-            }
-            
+        // 🎨 純 Canvas 科技感特效背景（去圖片化）
+        function drawCyberBackground() {
             ctx.save();
             if (bossActive) {
-                ctx.fillStyle = "rgba(25, 5, 5, 0.6)"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+                // Boss 戰：深紅色警告氛圍
+                ctx.fillStyle = "rgba(25, 5, 5, 0.6)"; 
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // 中央核心能量脈衝（純代碼渲染）
                 let pulseRadius = 130 + Math.sin(Date.now() / 150) * 20;
-                let gradient = ctx.createRadialGradient(200, 250, 50, 200, 250, pulseRadius);
-                gradient.addColorStop(0, 'rgba(150, 0, 255, 0.2)');
+                let gradient = ctx.createRadialGradient(200, 250, 20, 200, 250, pulseRadius);
+                gradient.addColorStop(0, 'rgba(142, 68, 173, 0.25)'); // 紫色核心
+                gradient.addColorStop(0.5, 'rgba(231, 76, 60, 0.1)'); // 紅色外圈
                 gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
-                ctx.fillStyle = gradient; ctx.beginPath(); ctx.arc(200, 250, pulseRadius, 0, Math.PI*2); ctx.fill();
+                
+                ctx.fillStyle = gradient; 
+                ctx.beginPath(); 
+                ctx.arc(200, 250, pulseRadius, 0, Math.PI*2); 
+                ctx.fill();
 
-                ctx.globalAlpha = 1.0;
-                let shakeX = (Math.random() - 0.5) * 3;
-                let shakeY = (Math.random() - 0.5) * 3;
-                ctx.drawImage(trumpImg, 200 - 100 + shakeX, 250 - 100 + shakeY, 200, 200);
+                // 畫面邊緣科技感十字瞄準線
+                ctx.strokeStyle = "rgba(231, 76, 60, 0.15)";
+                ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.moveTo(200, 0); ctx.lineTo(200, canvas.height); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, 250); ctx.lineTo(canvas.width, 250); ctx.stroke();
             } else {
-                ctx.globalAlpha = 0.22;
-                ctx.drawImage(trumpImg, 200 - 90, 250 - 90, 180, 180);
+                // 普通關卡：純淨黑洞星空深淵
+                ctx.fillStyle = "rgba(5, 5, 8, 0.4)";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
             }
             ctx.restore();
         }
@@ -456,7 +456,8 @@
             bgStars.forEach(s => { ctx.globalAlpha = s.speed; ctx.fillRect(s.x, s.y, s.size, s.size); });
             ctx.globalAlpha = 1.0;
 
-            drawTrumpBackground();
+            // 🎨 改為渲染純代碼科技背景
+            drawCyberBackground();
 
             let spikeGrad = ctx.createLinearGradient(0, 0, 0, 15);
             spikeGrad.addColorStop(0, '#444'); spikeGrad.addColorStop(1, '#222');
