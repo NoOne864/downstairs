@@ -19,6 +19,20 @@
         .info-item { margin-bottom: 10px; padding: 6px 10px; border-left: 3px solid #f1c40f; background: rgba(255,255,255,0.03); border-radius: 0 4px 4px 0; }
         .info-item b { color: #f1c40f; }
 
+        /* 📜 排行榜樣式 */
+        .leaderboard-box {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(241, 196, 15, 0.2);
+            border-radius: 6px;
+            width: 85%;
+            margin-top: 15px;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        .leaderboard-title { color: #f1c40f; font-weight: bold; font-size: 14px; margin-bottom: 5px; border-bottom: 1px solid rgba(241,196,15,0.2); padding-bottom: 3px; }
+        .leaderboard-row { display: flex; justify-content: space-between; font-size: 12px; padding: 3px 5px; color: #ccc; }
+        .leaderboard-row:nth-child(2) { color: #f1c40f; font-weight: bold; } /* 第一名金黃色 */
+
         button { 
             padding: 12px 30px; font-size: 15px; cursor: pointer; background: #f1c40f; 
             border: none; color: #000; border-radius: 6px; margin: 10px 5px; font-weight: bold;
@@ -28,7 +42,6 @@
         button:hover { background: #f39c12; transform: translateY(-2px); box-shadow: 0 6px 15px rgba(241, 196, 15, 0.4); }
         button:active { transform: translateY(0); }
 
-        /* 🔴 Red MUST READ Button */
         button.info-btn { 
             background: #e74c3c; 
             color: white; 
@@ -43,7 +56,7 @@
             100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); }
         }
 
-        h1 { margin: 0; color: #f1c40f; text-shadow: 0 0 20px rgba(243, 156, 18, 0.5); font-size: 24px; line-height: 1.3; font-weight: 800; letter-spacing: 1px; }
+        h1 { margin: 0; color: #f1c40f; text-shadow: 0 0 20px rgba(243, 156, 18, 0.5); font-size: 22px; line-height: 1.3; font-weight: 800; letter-spacing: 1px; }
         .hidden { display: none !important; }
     </style>
 </head>
@@ -51,10 +64,15 @@
     <div id="gameContainer">
         <div id="menuScreen" class="overlay">
             <h1 id="menuTitle">SURVIVE 100 FLOORS IN THE EPSTEIN ISLAND</h1>
-            <p style="color: #aaa; margin-top: 12px; font-size: 13px;">← → Move | [Tab] Pause</p>
-            <div style="display: flex; margin-top: 15px;">
+            <p style="color: #aaa; margin-top: 8px; font-size: 12px;">← → Move | [Tab] Pause</p>
+            <div style="display: flex; margin-top: 10px;">
                 <button onclick="startGame()">START GAME</button>
                 <button class="info-btn" onclick="toggleInfo(true)">MUST READ</button>
+            </div>
+            
+            <div class="leaderboard-box">
+                <div class="leaderboard-title">🏆 TOP SURVIVORS</div>
+                <div id="leaderboardContent"></div>
             </div>
         </div>
 
@@ -68,7 +86,7 @@
                 <div class="info-item"><b>Green:</b> Heals 10% HP then breaks immediately.</div>
                 <div class="info-item"><b>Yellow/Black:</b> Conveyor belt (pushes you sideways).</div>
                 <div class="info-item"><b>Gold:</b> Full Heal + 10s Flight (spawns every 20 floors).</div>
-                <div class="info-item"><b>The Boss (Floor 50):</b> Stops counter. Dodge red pillars. Stand on <b>Glowing White</b> platforms to deal 10% damage.</div>
+                <div class="info-item"><b>The Boss (Floor 50):</b> Stops counter. Dodge detailed laser beams. Stand on <b>Glowing White</b> platforms to deal 10% damage.</div>
                 <div class="info-item"><b>Bottom Hazard:</b> Losing 50% HP triggers <b>Invincible Uprising</b>.</div>
                 <div class="info-item"><b>Secrets:</b> [A+D] Warp to Boss | [Q+E] Kill Boss.</div>
             </div>
@@ -90,6 +108,7 @@
         const infoScreen = document.getElementById('infoScreen');
         const menuTitle = document.getElementById('menuTitle');
         const pauseScreen = document.getElementById('pauseScreen');
+        const leaderboardContent = document.getElementById('leaderboardContent');
 
         let gameState = 'MENU';
         let player, platforms, pillars, platformsLanded, nextGoldMilestone, bossActive, bossHP, pillarTimer, forceNextGold;
@@ -98,14 +117,369 @@
         const FIXED_SPEED = 1.8;
         const keys = {};
 
-        // 📸 已修正：完美對齊你的 GitHub 檔名 trump.jpg
+        // 📸 讀取川普背景圖片
         const trumpImg = new Image();
         trumpImg.src = 'trump.jpg';
 
-        // 初始化背景粒子星空
+        // 初始化背景星空
         for (let i = 0; i < 40; i++) {
             bgStars.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, size: Math.random() * 2, speed: Math.random() * 0.5 + 0.2 });
         }
 
+        // 🏆 排行榜載入與顯示函數
+        function updateLeaderboardUI() {
+            let scores = JSON.parse(localStorage.getItem('epstein_scores')) || [];
+            if (scores.length === 0) {
+                leaderboardContent.innerHTML = '<div style="font-size:11px; color:#666; padding:5px;">No records yet. Be the first!</div>';
+                return;
+            }
+            let html = '';
+            scores.forEach((s, idx) => {
+                html += `<div class="leaderboard-row"><span>${idx + 1}. ${s.name}</span><span>Floor ${s.score}</span></div>`;
+            });
+            leaderboardContent.innerHTML = html;
+        }
+        // 初始載入一次排行榜
+        updateLeaderboardUI();
+
+        // 🏆 排行榜儲存函數
+        function checkAndSaveScore(finalScore) {
+            // 延遲一下讓畫面渲染完畢再跳出輸入框
+            setTimeout(() => {
+                let playerName = prompt(`Game Over! You reached Floor ${finalScore}.\nEnter your name for the Leaderboard:`, "Anonymous");
+                if (!playerName || playerName.trim() === "") playerName = "Anonymous";
+                
+                let scores = JSON.parse(localStorage.getItem('epstein_scores')) || [];
+                scores.push({ name: playerName.substring(0, 10), score: finalScore });
+                
+                // 排序：分數高排前面，最多保留前 5 名
+                scores.sort((a, b) => b.score - a.score);
+                scores = scores.slice(0, 5);
+                
+                localStorage.setItem('epstein_scores', JSON.stringify(scores));
+                updateLeaderboardUI();
+            }, 100);
+        }
+
         function initVariables() {
-            player = { x: 190, y
+            player = { x: 190, y: 100, width: 20, height: 20, vx: 0, vy: 0, hp: 100, maxHp: 100, accel: 0.8, friction: 0.85, flightTimer: 0, isFloating: false, isBoosting: false };
+            platforms = []; pillars = []; particles = [];
+            platformsLanded = 0; nextGoldMilestone = 20;
+            bossActive = false; bossHP = 100; pillarTimer = 0; forceNextGold = false;
+            createPlatform(200, 'normal', true); 
+            for (let i = 1; i < 6; i++) createPlatform(200 + (i * 90), 'solid');
+        }
+
+        function createPlatform(y, type = 'random', isStart = false) {
+            const solidTypes = ['normal', 'normal', 'spike', 'jump', 'freeze', 'conveyor'];
+            let selectedType;
+            if (isStart) selectedType = 'normal';
+            else if (type === 'forceGold') selectedType = 'flight';
+            else if (platformsLanded >= 50 && bossHP > 0) selectedType = Math.random() < 0.25 ? 'bossDamage' : solidTypes[Math.floor(Math.random() * solidTypes.length)];
+            else if (type === 'solid') selectedType = solidTypes[Math.floor(Math.random() * solidTypes.length)];
+            else {
+                let rand = Math.random();
+                if (rand < 0.005) selectedType = 'flight'; 
+                else if (rand < 0.12) selectedType = 'heal';
+                else selectedType = solidTypes[Math.floor(Math.random() * solidTypes.length)];
+            }
+            platforms.push({ x: isStart ? (player.x - 40) : Math.random() * (canvas.width - 70), y: y, width: selectedType === 'flight' ? 120 : 70, height: 12, type: selectedType, lastJumpTime: 0, active: true, landed: false, dir: Math.random() < 0.5 ? -1 : 1 });
+        }
+
+        function spawnBreakParticles(x, y, color) {
+            for (let i = 0; i < 12; i++) {
+                particles.push({
+                    x: x, y: y,
+                    vx: (Math.random() - 0.5) * 4,
+                    vy: (Math.random() - 0.5) * 4 - 2,
+                    size: Math.random() * 3 + 2,
+                    color: color,
+                    alpha: 1,
+                    life: 1
+                });
+            }
+        }
+
+        function startGame() { initVariables(); gameState = 'PLAYING'; menuScreen.classList.add('hidden'); }
+        function toggleInfo(show) { show ? infoScreen.classList.remove('hidden') : infoScreen.classList.add('hidden'); }
+        function togglePause() {
+            if (gameState === 'PLAYING') { gameState = 'PAUSED'; pauseScreen.classList.remove('hidden'); }
+            else if (gameState === 'PAUSED') { gameState = 'PLAYING'; pauseScreen.classList.add('hidden'); }
+        }
+
+        window.addEventListener('keydown', e => {
+            keys[e.code] = true;
+            if (e.code === 'Tab') { e.preventDefault(); if (gameState !== 'MENU') togglePause(); }
+            if (keys['KeyA'] && keys['KeyD'] && gameState === 'PLAYING') { platformsLanded = 50; bossHP = 100; }
+            if (keys['KeyQ'] && keys['KeyE'] && gameState === 'PLAYING' && bossActive) { bossHP = 0; forceNextGold = true; }
+        });
+        window.addEventListener('keyup', e => keys[e.code] = false);
+
+        function drawTrumpBackground() {
+            if (!trumpImg.complete || trumpImg.naturalWidth === 0) {
+                if (bossActive) {
+                    ctx.fillStyle = "rgba(40, 5, 5, 0.5)"; ctx.fillRect(0,0,canvas.width,canvas.height);
+                    ctx.fillStyle = "rgba(150, 0, 255, 0.15)"; ctx.beginPath(); ctx.arc(200, 250, 110 + Math.sin(Date.now()/200)*15, 0, Math.PI*2); ctx.fill();
+                }
+                return; 
+            }
+            
+            ctx.save();
+            if (bossActive) {
+                ctx.fillStyle = "rgba(25, 5, 5, 0.6)";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                let pulseRadius = 130 + Math.sin(Date.now() / 150) * 20;
+                let gradient = ctx.createRadialGradient(200, 250, 50, 200, 250, pulseRadius);
+                gradient.addColorStop(0, 'rgba(150, 0, 255, 0.2)');
+                gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                ctx.fillStyle = gradient; ctx.beginPath(); ctx.arc(200, 250, pulseRadius, 0, Math.PI*2); ctx.fill();
+
+                ctx.globalAlpha = 1.0;
+                let shakeX = (Math.random() - 0.5) * 3;
+                let shakeY = (Math.random() - 0.5) * 3;
+                ctx.drawImage(trumpImg, 200 - 100 + shakeX, 250 - 100 + shakeY, 200, 200);
+            } else {
+                ctx.globalAlpha = 0.22;
+                ctx.drawImage(trumpImg, 200 - 90, 250 - 90, 180, 180);
+            }
+            ctx.restore();
+        }
+
+        function update() {
+            if (gameState !== 'PLAYING') return;
+
+            bgStars.forEach(s => {
+                s.y -= FIXED_SPEED * s.speed;
+                if (s.y < 0) { s.y = canvas.height; s.x = Math.random() * canvas.width; }
+            });
+
+            particles.forEach((p, index) => {
+                p.x += p.vx; p.y += p.vy; p.vy += 0.1; p.alpha -= 0.02;
+                if (p.alpha <= 0) particles.splice(index, 1);
+            });
+
+            let wasBossActive = bossActive;
+            bossActive = (platformsLanded >= 50 && bossHP > 0);
+            if (wasBossActive && !bossActive) { forceNextGold = true; nextGoldMilestone = Math.ceil((platformsLanded + 1) / 20) * 20; }
+
+            if (player.isBoosting) {
+                player.y -= 8;
+                if (player.y <= 250) { player.y = 250; player.isBoosting = false; player.isFloating = true; player.vy = 0; }
+            } else if (player.flightTimer > 0) {
+                player.flightTimer -= 1/60;
+                if (keys['ArrowUp']) player.vy = -4.5;
+                else if (keys['ArrowDown']) player.vy = 4.5;
+                else player.vy *= 0.9;
+                if (keys['ArrowLeft']) player.vx = -5;
+                else if (keys['ArrowRight']) player.vx = 5;
+                else player.vx *= 0.9;
+            } else {
+                player.vy += player.isFloating ? 0.08 : 0.35; 
+                if (keys['ArrowLeft']) player.vx -= player.accel;
+                if (keys['ArrowRight']) player.vx += player.accel;
+                player.vx *= player.friction; 
+            }
+
+            if (!player.isBoosting) { player.x += player.vx; player.y += player.vy; }
+            if (player.x < 0) player.x = 0;
+            if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
+            if (player.y <= 15) player.hp = 0;
+            
+            if (player.y + player.height >= canvas.height - 5 && !player.isBoosting) {
+                player.hp -= 50; 
+                player.isBoosting = true; 
+                player.isFloating = false; 
+                player.vx = 0; 
+                player.vy = 0;
+                spawnBreakParticles(player.x + 10, canvas.height - 10, '#0ff');
+            }
+
+            // ⚡ Boss 雷射光束生成邏輯（包含預警時間）
+            if (bossActive) {
+                pillarTimer++;
+                if (pillarTimer > 75) { 
+                    // 生成一根雷射柱，加入 state 控制機制 ('warning' -> 'firing')
+                    pillars.push({ 
+                        x: Math.random() * (canvas.width - 20), 
+                        y: 0, 
+                        width: 20, 
+                        height: canvas.height, 
+                        state: 'warning', 
+                        timer: 35 // 預警 35 影格
+                    }); 
+                    pillarTimer = 0; 
+                }
+            } else { pillars = []; }
+            
+            pillars.forEach((p, i) => {
+                if (p.state === 'warning') {
+                    p.timer--;
+                    if (p.timer <= 0) {
+                        p.state = 'firing';
+                        p.timer = 40; // 實際持續噴射 40 影格
+                    }
+                } else if (p.state === 'firing') {
+                    p.timer--;
+                    // ⚡ 雷射碰撞判定：高精確縱向雷射射線
+                    if (!player.isBoosting && !player.isFloating) {
+                        if (player.x < p.x + p.width && player.x + player.width > p.x) {
+                            player.hp -= 1.2; // 科幻大雷射，傷害略微提高
+                        }
+                    }
+                    if (p.timer <= 0) pillars.splice(i, 1);
+                }
+            });
+
+            platforms.forEach((p) => {
+                p.y -= FIXED_SPEED; 
+                if (!p.active) return;
+                if (player.vy > 0 && player.x + player.width > p.x && player.x < p.x + p.width && player.y + player.height > p.y && player.y + player.height < p.y + p.height + player.vy) {
+                    player.y = p.y - player.height; player.vy = 0;
+                    player.isFloating = false; player.isBoosting = false; 
+                    if (!p.landed && !bossActive) { p.landed = true; platformsLanded++; }
+                    if (p.type === 'spike') { if (!player.isFloating) player.hp -= 0.6; }
+                    else if (p.type === 'bossDamage') { bossHP -= 10; p.type = 'normal'; spawnBreakParticles(p.x + p.width/2, p.y, '#fff'); }
+                    else if (p.type === 'freeze') player.vx *= 0.8;
+                    else if (p.type === 'conveyor') player.x += p.dir * 2.2; 
+                    else if (p.type === 'heal') { player.hp = Math.min(100, player.hp + 10); p.active = false; spawnBreakParticles(p.x + p.width/2, p.y, '#00ff00'); }
+                    else if (p.type === 'flight') { player.flightTimer = 10; player.hp = 100; p.active = false; spawnBreakParticles(p.x + p.width/2, p.y, '#FFD700'); }
+                    else if (p.type === 'jump') {
+                        let now = Date.now();
+                        if (now - p.lastJumpTime > 1500) { player.vy = -6; p.lastJumpTime = now; }
+                    }
+                }
+            });
+
+            if (platforms.length > 0 && platforms[platforms.length-1].y < canvas.height - 90) {
+                if (forceNextGold) { createPlatform(canvas.height, 'forceGold'); forceNextGold = false; }
+                else if (platformsLanded >= nextGoldMilestone && !bossActive) { createPlatform(canvas.height, 'forceGold'); nextGoldMilestone += 20; }
+                else createPlatform(canvas.height, platforms.some(pl => pl.active && pl.y > player.y && pl.type !== 'heal' && pl.type !== 'flight') ? 'random' : 'solid');
+            }
+            if (platforms.length > 0 && platforms.y < -20) platforms.shift();
+
+            // 🏆 死亡或通關時觸發排行榜結算
+            if (player.hp <= 0) { 
+                let finalScore = platformsLanded;
+                gameState = 'MENU'; 
+                menuTitle.innerText = "YOU DIED"; 
+                menuScreen.classList.remove('hidden'); 
+                checkAndSaveScore(finalScore);
+            }
+            if (platformsLanded >= 100) { 
+                let finalScore = platformsLanded;
+                gameState = 'MENU'; 
+                menuTitle.innerText = "YOU ESCAPED THE ISLAND!"; 
+                menuScreen.classList.remove('hidden'); 
+                checkAndSaveScore(finalScore);
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = '#fff';
+            bgStars.forEach(s => { ctx.globalAlpha = s.speed; ctx.fillRect(s.x, s.y, s.size, s.size); });
+            ctx.globalAlpha = 1.0;
+
+            drawTrumpBackground();
+
+            let spikeGrad = ctx.createLinearGradient(0, 0, 0, 15);
+            spikeGrad.addColorStop(0, '#444'); spikeGrad.addColorStop(1, '#222');
+            ctx.fillStyle = spikeGrad;
+            for (let x = 0; x < canvas.width; x += 15) {
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + 7.5, 15); ctx.lineTo(x + 15, 0); ctx.fill();
+                ctx.beginPath(); ctx.moveTo(x, 500); ctx.lineTo(x + 7.5, 485); ctx.lineTo(x + 15, 500); ctx.fill();
+            }
+
+            if (gameState === 'MENU') return requestAnimationFrame(draw);
+            
+            particles.forEach(p => {
+                ctx.save(); ctx.globalAlpha = p.alpha; ctx.fillStyle = p.color;
+                ctx.fillRect(p.x, p.y, p.size, p.size); ctx.restore();
+            });
+
+            if (bossActive) {
+                let bGrad = ctx.createLinearGradient(50, 0, 350, 0);
+                bGrad.addColorStop(0, '#8e44ad'); bGrad.addColorStop(1, '#d000ff');
+                ctx.fillStyle = "rgba(20, 10, 30, 0.6)"; ctx.fillRect(50, 15, 300, 8);
+                ctx.fillStyle = bGrad; ctx.fillRect(50, 15, (bossHP/100)*300, 8);
+            }
+
+            ctx.fillStyle = "rgba(20, 20, 20, 0.7)"; ctx.fillRect(50, 30, 300, 14);
+            let hpGrad = ctx.createLinearGradient(50, 0, 350, 0);
+            if(player.hp > 30) { hpGrad.addColorStop(0, '#2ecc71'); hpGrad.addColorStop(1, '#27ae60'); }
+            else { hpGrad.addColorStop(0, '#e74c3c'); hpGrad.addColorStop(1, '#c0392b'); }
+            ctx.fillStyle = hpGrad; ctx.fillRect(50, 30, (player.hp/100)*300, 14);
+            
+            ctx.fillStyle = "white"; ctx.font = "bold 11px Arial"; ctx.textAlign = "center";
+            let flightText = player.flightTimer > 0 ? ` [FLYING: ${Math.ceil(player.flightTimer)}s]` : "";
+            ctx.fillText(`FLOORS: ${platformsLanded} | HP: ${Math.ceil(player.hp)}%${flightText}`, 200, 41);
+
+            // ⚡ 繪製高細節科幻雷射光束
+            pillars.forEach(p => { 
+                ctx.save();
+                if (p.state === 'warning') {
+                    // 🚨 預警線：微弱閃爍的細線
+                    ctx.shadowBlur = 0;
+                    ctx.fillStyle = `rgba(231, 76, 60, ${0.2 + Math.sin(Date.now()/40)*0.1})`;
+                    ctx.fillRect(p.x + p.width/2 - 1.5, 0, 3, canvas.height);
+                } else if (p.state === 'firing') {
+                    // 🔥 正式噴射：雷射光束霓虹漸層
+                    let laserGrad = ctx.createLinearGradient(p.x, 0, p.x + p.width, 0);
+                    laserGrad.addColorStop(0, 'rgba(231, 76, 60, 0.3)');  // 外側紅光
+                    laserGrad.addColorStop(0.25, '#ff2222');              // 霓虹紅
+                    laserGrad.addColorStop(0.5, '#ffffff');               // 核心純白高溫光束
+                    laserGrad.addColorStop(0.75, '#ff2222');
+                    laserGrad.addColorStop(1, 'rgba(231, 76, 60, 0.3)');
+
+                    ctx.shadowBlur = 15;
+                    ctx.shadowColor = "#ff2222";
+                    ctx.fillStyle = laserGrad;
+                    ctx.fillRect(p.x, 0, p.width, canvas.height);
+                }
+                ctx.restore();
+            });
+            
+            let isInvincible = player.isBoosting || player.isFloating;
+            ctx.save();
+            if (isInvincible) { ctx.shadowBlur = 18; ctx.shadowColor = "#0ff"; ctx.fillStyle = "#0ff"; } 
+            else if (player.flightTimer > 0) { ctx.shadowBlur = 18; ctx.shadowColor = "#FFD700"; ctx.fillStyle = "#FFD700"; } 
+            else { ctx.shadowBlur = 4; ctx.shadowColor = "rgba(0,0,0,0.5)"; ctx.fillStyle = "#fff"; }
+            ctx.fillRect(player.x, player.y, player.width, player.height); 
+            ctx.restore();
+
+            platforms.forEach(p => {
+                if (!p.active) return;
+                ctx.save();
+                
+                if (p.type === 'conveyor') {
+                    ctx.fillStyle = "#f1c40f"; ctx.fillRect(p.x, p.y, p.width, p.height);
+                    ctx.fillStyle = "#222"; for(let i=0; i<p.width; i+=20) { ctx.fillRect(p.x + i, p.y, 8, p.height); }
+                    ctx.fillStyle = "#e74c3c"; ctx.font = "bold 14px Arial"; 
+                    ctx.fillText(p.dir === 1 ? "→" : "←", p.x + p.width/2, p.y + p.height + 14);
+                } else {
+                    if (p.type === 'bossDamage') { ctx.fillStyle = "#fff"; ctx.shadowBlur = 15; ctx.shadowColor = "#fff"; }
+                    else if (p.type === 'spike') { ctx.fillStyle = "#e74c3c"; ctx.shadowBlur = 8; ctx.shadowColor = "#e74c3c"; }
+                    else if (p.type === 'jump') { ctx.fillStyle = "#ff8c00"; ctx.shadowBlur = 8; ctx.shadowColor = "#ff8c00"; }
+                    else if (p.type === 'freeze') { ctx.fillStyle = "#7ed6df"; ctx.shadowBlur = 8; ctx.shadowColor = "#7ed6df"; } 
+                    else if (p.type === 'heal') { ctx.fillStyle = "#2ecc71"; ctx.shadowBlur = 10; ctx.shadowColor = "#2ecc71"; }
+                    else if (p.type === 'flight') { ctx.fillStyle = "#f1c40f"; ctx.shadowBlur = 15; ctx.shadowColor = "#f1c40f"; }
+                    else ctx.fillStyle = "#7f8c8d"; 
+                    
+                    ctx.fillRect(p.x, p.y, p.width, p.height);
+                    
+                    if (p.type === 'spike') {
+                        ctx.fillStyle = "#c0392b";
+                        for(let i=0; i<p.width; i+=10) { ctx.beginPath(); ctx.moveTo(p.x + i, p.y); ctx.lineTo(p.x + i + 5, p.y - 6); ctx.lineTo(p.x + i + 10, p.y); ctx.fill(); }
+                    }
+                }
+                ctx.restore();
+            });
+            
+            update(); requestAnimationFrame(draw);
+        }
+        draw();
+    </script>
+</body>
+</html>
