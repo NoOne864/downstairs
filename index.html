@@ -31,7 +31,7 @@
         }
         .leaderboard-title { color: #f1c40f; font-weight: bold; font-size: 14px; margin-bottom: 5px; border-bottom: 1px solid rgba(241,196,15,0.2); padding-bottom: 3px; }
         .leaderboard-row { display: flex; justify-content: space-between; font-size: 12px; padding: 3px 5px; color: #ccc; }
-        .leaderboard-row:nth-child(2) { color: #f1c40f; font-weight: bold; } /* 第一名金黃色 */
+        .leaderboard-row:nth-child(2) { color: #f1c40f; font-weight: bold; }
 
         button { 
             padding: 12px 30px; font-size: 15px; cursor: pointer; background: #f1c40f; 
@@ -117,7 +117,7 @@
         const FIXED_SPEED = 1.8;
         const keys = {};
 
-        // 📸 讀取川普背景圖片
+        // 📸 背景圖片
         const trumpImg = new Image();
         trumpImg.src = 'trump.jpg';
 
@@ -126,39 +126,51 @@
             bgStars.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, size: Math.random() * 2, speed: Math.random() * 0.5 + 0.2 });
         }
 
-        // 🏆 排行榜載入與顯示函數
+        // 🛠️ 安全讀取排行榜（增加 try-catch 防止本地快取格式錯誤卡死按鈕）
         function updateLeaderboardUI() {
-            let scores = JSON.parse(localStorage.getItem('epstein_scores')) || [];
-            if (scores.length === 0) {
+            try {
+                let scores = JSON.parse(localStorage.getItem('epstein_scores'));
+                if (!Array.isArray(scores)) scores = [];
+                
+                if (scores.length === 0) {
+                    leaderboardContent.innerHTML = '<div style="font-size:11px; color:#666; padding:5px;">No records yet. Be the first!</div>';
+                    return;
+                }
+                let html = '';
+                scores.forEach((s, idx) => {
+                    html += `<div class="leaderboard-row"><span>${idx + 1}. ${s.name || 'Anonymous'}</span><span>Floor ${s.score || 0}</span></div>`;
+                });
+                leaderboardContent.innerHTML = html;
+            } catch (e) {
+                localStorage.setItem('epstein_scores', JSON.stringify([]));
                 leaderboardContent.innerHTML = '<div style="font-size:11px; color:#666; padding:5px;">No records yet. Be the first!</div>';
-                return;
             }
-            let html = '';
-            scores.forEach((s, idx) => {
-                html += `<div class="leaderboard-row"><span>${idx + 1}. ${s.name}</span><span>Floor ${s.score}</span></div>`;
-            });
-            leaderboardContent.innerHTML = html;
         }
-        // 初始載入一次排行榜
         updateLeaderboardUI();
 
-        // 🏆 排行榜儲存函數
+        // 🛠️ 修正版：非同步防卡死結算機制
         function checkAndSaveScore(finalScore) {
-            // 延遲一下讓畫面渲染完畢再跳出輸入框
+            // 讓選單先完全顯示出來後，再用 setTimeout 釋放執行緒彈出輸入框
             setTimeout(() => {
                 let playerName = prompt(`Game Over! You reached Floor ${finalScore}.\nEnter your name for the Leaderboard:`, "Anonymous");
-                if (!playerName || playerName.trim() === "") playerName = "Anonymous";
+                if (playerName === null) return; // 如果玩家按取消，不儲存直接返回
+                if (playerName.trim() === "") playerName = "Anonymous";
                 
-                let scores = JSON.parse(localStorage.getItem('epstein_scores')) || [];
+                let scores;
+                try {
+                    scores = JSON.parse(localStorage.getItem('epstein_scores'));
+                    if (!Array.isArray(scores)) scores = [];
+                } catch(e) {
+                    scores = [];
+                }
+
                 scores.push({ name: playerName.substring(0, 10), score: finalScore });
-                
-                // 排序：分數高排前面，最多保留前 5 名
                 scores.sort((a, b) => b.score - a.score);
                 scores = scores.slice(0, 5);
                 
                 localStorage.setItem('epstein_scores', JSON.stringify(scores));
                 updateLeaderboardUI();
-            }, 100);
+            }, 300); // 延遲 300ms 確保 UI 渲染完畢，不卡死主畫面
         }
 
         function initVariables() {
@@ -200,7 +212,13 @@
             }
         }
 
-        function startGame() { initVariables(); gameState = 'PLAYING'; menuScreen.classList.add('hidden'); }
+        function startGame() { 
+            if (gameState === 'PLAYING') return;
+            initVariables(); 
+            gameState = 'PLAYING'; 
+            menuScreen.classList.add('hidden'); 
+        }
+        
         function toggleInfo(show) { show ? infoScreen.classList.remove('hidden') : infoScreen.classList.add('hidden'); }
         function togglePause() {
             if (gameState === 'PLAYING') { gameState = 'PAUSED'; pauseScreen.classList.remove('hidden'); }
@@ -295,18 +313,16 @@
                 spawnBreakParticles(player.x + 10, canvas.height - 10, '#0ff');
             }
 
-            // ⚡ Boss 雷射光束生成邏輯（包含預警時間）
             if (bossActive) {
                 pillarTimer++;
                 if (pillarTimer > 75) { 
-                    // 生成一根雷射柱，加入 state 控制機制 ('warning' -> 'firing')
                     pillars.push({ 
                         x: Math.random() * (canvas.width - 20), 
                         y: 0, 
                         width: 20, 
                         height: canvas.height, 
                         state: 'warning', 
-                        timer: 35 // 預警 35 影格
+                        timer: 35 
                     }); 
                     pillarTimer = 0; 
                 }
@@ -317,14 +333,13 @@
                     p.timer--;
                     if (p.timer <= 0) {
                         p.state = 'firing';
-                        p.timer = 40; // 實際持續噴射 40 影格
+                        p.timer = 40; 
                     }
                 } else if (p.state === 'firing') {
                     p.timer--;
-                    // ⚡ 雷射碰撞判定：高精確縱向雷射射線
                     if (!player.isBoosting && !player.isFloating) {
                         if (player.x < p.x + p.width && player.x + player.width > p.x) {
-                            player.hp -= 1.2; // 科幻大雷射，傷害略微提高
+                            player.hp -= 1.2; 
                         }
                     }
                     if (p.timer <= 0) pillars.splice(i, 1);
@@ -358,7 +373,6 @@
             }
             if (platforms.length > 0 && platforms.y < -20) platforms.shift();
 
-            // 🏆 死亡或通關時觸發排行榜結算
             if (player.hp <= 0) { 
                 let finalScore = platformsLanded;
                 gameState = 'MENU'; 
@@ -416,20 +430,18 @@
             let flightText = player.flightTimer > 0 ? ` [FLYING: ${Math.ceil(player.flightTimer)}s]` : "";
             ctx.fillText(`FLOORS: ${platformsLanded} | HP: ${Math.ceil(player.hp)}%${flightText}`, 200, 41);
 
-            // ⚡ 繪製高細節科幻雷射光束
+            // ⚡ 繪製高細節雷射光束
             pillars.forEach(p => { 
                 ctx.save();
                 if (p.state === 'warning') {
-                    // 🚨 預警線：微弱閃爍的細線
                     ctx.shadowBlur = 0;
                     ctx.fillStyle = `rgba(231, 76, 60, ${0.2 + Math.sin(Date.now()/40)*0.1})`;
                     ctx.fillRect(p.x + p.width/2 - 1.5, 0, 3, canvas.height);
                 } else if (p.state === 'firing') {
-                    // 🔥 正式噴射：雷射光束霓虹漸層
                     let laserGrad = ctx.createLinearGradient(p.x, 0, p.x + p.width, 0);
-                    laserGrad.addColorStop(0, 'rgba(231, 76, 60, 0.3)');  // 外側紅光
-                    laserGrad.addColorStop(0.25, '#ff2222');              // 霓虹紅
-                    laserGrad.addColorStop(0.5, '#ffffff');               // 核心純白高溫光束
+                    laserGrad.addColorStop(0, 'rgba(231, 76, 60, 0.3)');  
+                    laserGrad.addColorStop(0.25, '#ff2222');              
+                    laserGrad.addColorStop(0.5, '#ffffff');               
                     laserGrad.addColorStop(0.75, '#ff2222');
                     laserGrad.addColorStop(1, 'rgba(231, 76, 60, 0.3)');
 
