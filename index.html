@@ -1,45 +1,49 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Survive 100 Floors in the Epstein Island</title>
+    <title>Survive 100 Floors in the Epstein Island - Remastered</title>
     <style>
-        body { margin: 0; background: #111; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: 'Arial', sans-serif; }
-        #gameContainer { position: relative; width: 400px; height: 500px; }
-        canvas { background: #000; border: 4px solid #444; display: block; }
+        body { margin: 0; background: #0a0a0c; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: 'Segoe UI', Arial, sans-serif; }
+        #gameContainer { position: relative; width: 400px; height: 500px; box-shadow: 0 0 40px rgba(0,0,0,0.8); border-radius: 8px; overflow: hidden; }
+        canvas { background: #050508; border: 4px solid #222; display: block; border-radius: 8px; }
         
         .overlay { 
             position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
             display: flex; flex-direction: column; justify-content: center; align-items: center; 
-            background: rgba(0,0,0,0.9); color: white; transition: 0.3s; z-index: 10;
+            background: rgba(10, 10, 15, 0.95); color: white; transition: 0.3s; z-index: 10;
             text-align: center; padding: 20px; box-sizing: border-box;
         }
         
         #infoScreen { overflow-y: auto; display: block; text-align: left; align-items: flex-start; }
-        .info-content { width: 100%; font-size: 13px; line-height: 1.4; }
-        .info-item { margin-bottom: 10px; padding-left: 10px; border-left: 3px solid #f1c40f; }
+        .info-content { width: 100%; font-size: 13px; line-height: 1.5; }
+        .info-item { margin-bottom: 10px; padding: 6px 10px; border-left: 3px solid #f1c40f; background: rgba(255,255,255,0.03); border-radius: 0 4px 4px 0; }
         .info-item b { color: #f1c40f; }
 
         button { 
-            padding: 12px 30px; font-size: 16px; cursor: pointer; background: #f1c40f; 
-            border: none; color: #000; border-radius: 5px; margin: 10px 5px; font-weight: bold;
+            padding: 12px 30px; font-size: 15px; cursor: pointer; background: #f1c40f; 
+            border: none; color: #000; border-radius: 6px; margin: 10px 5px; font-weight: bold;
+            transition: all 0.2s; box-shadow: 0 4px 10px rgba(241, 196, 15, 0.3);
+            letter-spacing: 1px;
         }
-        button:hover { background: #d4ac0d; }
+        button:hover { background: #f39c12; transform: translateY(-2px); box-shadow: 0 6px 15px rgba(241, 196, 15, 0.4); }
+        button:active { transform: translateY(0); }
 
         /* 🔴 Red MUST READ Button */
         button.info-btn { 
             background: #e74c3c; 
             color: white; 
+            box-shadow: 0 4px 10px rgba(231, 76, 60, 0.3);
             animation: pulse 1.5s infinite;
         }
-        button.info-btn:hover { background: #c0392b; }
+        button.info-btn:hover { background: #c0392b; box-shadow: 0 6px 15px rgba(231, 76, 60, 0.5); }
 
         @keyframes pulse {
             0% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7); }
-            70% { box-shadow: 0 0 0 10px rgba(231, 76, 60, 0); }
+            70% { box-shadow: 0 0 0 12px rgba(231, 76, 60, 0); }
             100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); }
         }
 
-        h1 { margin: 0; color: #f1c40f; text-shadow: 0 0 15px #f39c12; font-size: 22px; line-height: 1.2; }
+        h1 { margin: 0; color: #f1c40f; text-shadow: 0 0 20px rgba(243, 156, 18, 0.5); font-size: 24px; line-height: 1.3; font-weight: 800; letter-spacing: 1px; }
         .hidden { display: none !important; }
     </style>
 </head>
@@ -47,8 +51,8 @@
     <div id="gameContainer">
         <div id="menuScreen" class="overlay">
             <h1 id="menuTitle">SURVIVE 100 FLOORS IN THE EPSTEIN ISLAND</h1>
-            <p style="color: #888; margin-top: 10px;">← → Move | [Tab] Pause</p>
-            <div style="display: flex;">
+            <p style="color: #aaa; margin-top: 12px; font-size: 13px;">← → Move | [Tab] Pause</p>
+            <div style="display: flex; margin-top: 15px;">
                 <button onclick="startGame()">START GAME</button>
                 <button class="info-btn" onclick="toggleInfo(true)">MUST READ</button>
             </div>
@@ -68,5 +72,315 @@
                 <div class="info-item"><b>Bottom Hazard:</b> Losing 50% HP triggers <b>Invincible Uprising</b>.</div>
                 <div class="info-item"><b>Secrets:</b> [A+D] Warp to Boss | [Q+E] Kill Boss.</div>
             </div>
-            <button onclick="toggleInfo(false)">BACK</button>
+            <button onclick="toggleInfo(false)" style="margin-top: 15px;">BACK</button>
         </div>
+
+        <div id="pauseScreen" class="overlay hidden">
+            <h1 style="color: #3498db; text-shadow: 0 0 15px rgba(52, 152, 219, 0.5);">PAUSED</h1>
+            <button onclick="togglePause()">RESUME</button>
+        </div>
+
+        <canvas id="gameCanvas" width="400" height="500"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const menuScreen = document.getElementById('menuScreen');
+        const infoScreen = document.getElementById('infoScreen');
+        const menuTitle = document.getElementById('menuTitle');
+        const pauseScreen = document.getElementById('pauseScreen');
+
+        let gameState = 'MENU';
+        let player, platforms, pillars, platformsLanded, nextGoldMilestone, bossActive, bossHP, pillarTimer, forceNextGold;
+        let particles = []; // ✨ 升級加載：粒子效果陣列
+        let bgStars = [];   // ✨ 升級加載：背景星空陣列
+        const FIXED_SPEED = 1.8;
+        const keys = {};
+
+        // 📸 修正為你指定的正確副檔名：trump.jpeg
+        const trumpImg = new Image();
+        trumpImg.src = 'trump.jpeg';
+
+        // 初始化背景粒子星空
+        for (let i = 0; i < 40; i++) {
+            bgStars.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, size: Math.random() * 2, speed: Math.random() * 0.5 + 0.2 });
+        }
+
+        function initVariables() {
+            player = { x: 190, y: 100, width: 20, height: 20, vx: 0, vy: 0, hp: 100, maxHp: 100, accel: 0.8, friction: 0.85, flightTimer: 0, isFloating: false, isBoosting: false };
+            platforms = []; pillars = []; particles = [];
+            platformsLanded = 0; nextGoldMilestone = 20;
+            bossActive = false; bossHP = 100; pillarTimer = 0; forceNextGold = false;
+            createPlatform(200, 'normal', true); 
+            for (let i = 1; i < 6; i++) createPlatform(200 + (i * 90), 'solid');
+        }
+
+        function createPlatform(y, type = 'random', isStart = false) {
+            const solidTypes = ['normal', 'normal', 'spike', 'jump', 'freeze', 'conveyor'];
+            let selectedType;
+            if (isStart) selectedType = 'normal';
+            else if (type === 'forceGold') selectedType = 'flight';
+            else if (platformsLanded >= 50 && bossHP > 0) selectedType = Math.random() < 0.25 ? 'bossDamage' : solidTypes[Math.floor(Math.random() * solidTypes.length)];
+            else if (type === 'solid') selectedType = solidTypes[Math.floor(Math.random() * solidTypes.length)];
+            else {
+                let rand = Math.random();
+                if (rand < 0.005) selectedType = 'flight'; 
+                else if (rand < 0.12) selectedType = 'heal';
+                else selectedType = solidTypes[Math.floor(Math.random() * solidTypes.length)];
+            }
+            platforms.push({ x: isStart ? (player.x - 40) : Math.random() * (canvas.width - 70), y: y, width: selectedType === 'flight' ? 120 : 70, height: 12, type: selectedType, lastJumpTime: 0, active: true, landed: false, dir: Math.random() < 0.5 ? -1 : 1 });
+        }
+
+        function spawnBreakParticles(x, y, color) {
+            for (let i = 0; i < 12; i++) {
+                particles.push({
+                    x: x, y: y,
+                    vx: (Math.random() - 0.5) * 4,
+                    vy: (Math.random() - 0.5) * 4 - 2,
+                    size: Math.random() * 3 + 2,
+                    color: color,
+                    alpha: 1,
+                    life: 1
+                });
+            }
+        }
+
+        function startGame() { initVariables(); gameState = 'PLAYING'; menuScreen.classList.add('hidden'); }
+        function toggleInfo(show) { show ? infoScreen.classList.remove('hidden') : infoScreen.classList.add('hidden'); }
+        function togglePause() {
+            if (gameState === 'PLAYING') { gameState = 'PAUSED'; pauseScreen.classList.remove('hidden'); }
+            else if (gameState === 'PAUSED') { gameState = 'PLAYING'; pauseScreen.classList.add('hidden'); }
+        }
+
+        window.addEventListener('keydown', e => {
+            keys[e.code] = true;
+            if (e.code === 'Tab') { e.preventDefault(); if (gameState !== 'MENU') togglePause(); }
+            if (keys['KeyA'] && keys['KeyD'] && gameState === 'PLAYING') { platformsLanded = 50; bossHP = 100; }
+            if (keys['KeyQ'] && keys['KeyE'] && gameState === 'PLAYING' && bossActive) { bossHP = 0; forceNextGold = true; }
+        });
+        window.addEventListener('keyup', e => keys[e.code] = false);
+
+        function drawTrumpBackground() {
+            // 防卡死安全驗證：如果圖檔抓不到，不卡死遊戲
+            if (!trumpImg.complete || trumpImg.naturalWidth === 0) {
+                if (bossActive) {
+                    ctx.fillStyle = "rgba(40, 5, 5, 0.5)"; ctx.fillRect(0,0,canvas.width,canvas.height);
+                    ctx.fillStyle = "rgba(150, 0, 255, 0.15)"; ctx.beginPath(); ctx.arc(200, 250, 110 + Math.sin(Date.now()/200)*15, 0, Math.PI*2); ctx.fill();
+                }
+                return; 
+            }
+            
+            ctx.save();
+            if (bossActive) {
+                // 👹 Boss 戰特效大升級：脈衝背景法陣
+                ctx.fillStyle = "rgba(25, 5, 5, 0.6)";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                let pulseRadius = 130 + Math.sin(Date.now() / 150) * 20;
+                let gradient = ctx.createRadialGradient(200, 250, 50, 200, 250, pulseRadius);
+                gradient.addColorStop(0, 'rgba(150, 0, 255, 0.2)');
+                gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                ctx.fillStyle = gradient; ctx.beginPath(); ctx.arc(200, 250, pulseRadius, 0, Math.PI*2); ctx.fill();
+
+                ctx.globalAlpha = 1.0;
+                let shakeX = (Math.random() - 0.5) * 3;
+                let shakeY = (Math.random() - 0.5) * 3;
+                ctx.drawImage(trumpImg, 200 - 100 + shakeX, 250 - 100 + shakeY, 200, 200);
+            } else {
+                // 🏃 平常闖關背景
+                ctx.globalAlpha = 0.22;
+                ctx.drawImage(trumpImg, 200 - 90, 250 - 90, 180, 180);
+            }
+            ctx.restore();
+        }
+
+        function update() {
+            if (gameState !== 'PLAYING') return;
+
+            // 星空背景滾動
+            bgStars.forEach(s => {
+                s.y -= FIXED_SPEED * s.speed;
+                if (s.y < 0) { s.y = canvas.height; s.x = Math.random() * canvas.width; }
+            });
+
+            // 粒子生命更新
+            particles.forEach((p, index) => {
+                p.x += p.vx; p.y += p.vy; p.vy += 0.1; p.alpha -= 0.02;
+                if (p.alpha <= 0) particles.splice(index, 1);
+            });
+
+            let wasBossActive = bossActive;
+            bossActive = (platformsLanded >= 50 && bossHP > 0);
+            if (wasBossActive && !bossActive) { forceNextGold = true; nextGoldMilestone = Math.ceil((platformsLanded + 1) / 20) * 20; }
+
+            if (player.isBoosting) {
+                player.y -= 8;
+                if (player.y <= 250) { player.y = 250; player.isBoosting = false; player.isFloating = true; player.vy = 0; }
+            } else if (player.flightTimer > 0) {
+                player.flightTimer -= 1/60;
+                if (keys['ArrowUp']) player.vy = -4.5;
+                else if (keys['ArrowDown']) player.vy = 4.5;
+                else player.vy *= 0.9;
+                if (keys['ArrowLeft']) player.vx = -5;
+                else if (keys['ArrowRight']) player.vx = 5;
+                else player.vx *= 0.9;
+            } else {
+                player.vy += player.isFloating ? 0.08 : 0.35; 
+                if (keys['ArrowLeft']) player.vx -= player.accel;
+                if (keys['ArrowRight']) player.vx += player.accel;
+                player.vx *= player.friction; 
+            }
+
+            if (!player.isBoosting) { player.x += player.vx; player.y += player.vy; }
+            if (player.x < 0) player.x = 0;
+            if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
+            if (player.y <= 15) player.hp = 0;
+            if (player.y + player.height >= canvas.height - 5 && !player.isBoosting && !player.isFloating) {
+                player.hp -= 50; player.isBoosting = true; player.vx = 0; player.vy = 0;
+                spawnBreakParticles(player.x + 10, canvas.height - 10, '#0ff');
+            }
+
+            if (bossActive) {
+                pillarTimer++;
+                if (pillarTimer > 70) { pillars.push({ x: Math.random() * (canvas.width - 25), y: canvas.height, width: 25, height: 45, speed: 3.5 }); pillarTimer = 0; }
+            } else { pillars = []; }
+            
+            pillars.forEach((p, i) => {
+                p.y -= p.speed;
+                if (!player.isBoosting && !player.isFloating) {
+                    if (player.x < p.x + p.width && player.x + player.width > p.x && player.y < p.y + p.height && player.y + player.height > p.y) player.hp -= 0.8;
+                }
+                if (p.y < -50) pillars.splice(i, 1);
+            });
+
+            platforms.forEach((p) => {
+                p.y -= FIXED_SPEED; 
+                if (!p.active) return;
+                if (player.vy > 0 && player.x + player.width > p.x && player.x < p.x + p.width && player.y + player.height > p.y && player.y + player.height < p.y + p.height + player.vy) {
+                    player.y = p.y - player.height; player.vy = 0;
+                    player.isFloating = false; player.isBoosting = false;
+                    if (!p.landed && !bossActive) { p.landed = true; platformsLanded++; }
+                    if (p.type === 'spike') { if (!player.isFloating) player.hp -= 0.6; }
+                    else if (p.type === 'bossDamage') { bossHP -= 10; p.type = 'normal'; spawnBreakParticles(p.x + p.width/2, p.y, '#fff'); }
+                    else if (p.type === 'freeze') player.vx *= 0.8;
+                    else if (p.type === 'conveyor') player.x += p.dir * 2.2; 
+                    else if (p.type === 'heal') { player.hp = Math.min(100, player.hp + 10); p.active = false; spawnBreakParticles(p.x + p.width/2, p.y, '#00ff00'); }
+                    else if (p.type === 'flight') { player.flightTimer = 10; player.hp = 100; p.active = false; spawnBreakParticles(p.x + p.width/2, p.y, '#FFD700'); }
+                    else if (p.type === 'jump') {
+                        let now = Date.now();
+                        if (now - p.lastJumpTime > 1500) { player.vy = -6; p.lastJumpTime = now; }
+                    }
+                }
+            });
+
+            if (platforms.length > 0 && platforms[platforms.length-1].y < canvas.height - 90) {
+                if (forceNextGold) { createPlatform(canvas.height, 'forceGold'); forceNextGold = false; }
+                else if (platformsLanded >= nextGoldMilestone && !bossActive) { createPlatform(canvas.height, 'forceGold'); nextGoldMilestone += 20; }
+                else createPlatform(canvas.height, platforms.some(pl => pl.active && pl.y > player.y && pl.type !== 'heal' && pl.type !== 'flight') ? 'random' : 'solid');
+            }
+            if (platforms.length > 0 && platforms.y < -20) platforms.shift();
+
+            if (player.hp <= 0) { gameState = 'MENU'; menuTitle.innerText = "YOU DIED"; menuScreen.classList.remove('hidden'); }
+            if (platformsLanded >= 100) { gameState = 'MENU'; menuTitle.innerText = "YOU ESCAPED THE ISLAND!"; menuScreen.classList.remove('hidden'); }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 🌌 繪製精緻星空背景
+            ctx.fillStyle = '#fff';
+            bgStars.forEach(s => { ctx.globalAlpha = s.speed; ctx.fillRect(s.x, s.y, s.size, s.size); });
+            ctx.globalAlpha = 1.0;
+
+            // 📸 繪製相片
+            drawTrumpBackground();
+
+            // ☠️ 上下尖刺鋸齒視覺重製（增加漸層高光）
+            let spikeGrad = ctx.createLinearGradient(0, 0, 0, 15);
+            spikeGrad.addColorStop(0, '#444'); spikeGrad.addColorStop(1, '#222');
+            ctx.fillStyle = spikeGrad;
+            for (let x = 0; x < canvas.width; x += 15) {
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + 7.5, 15); ctx.lineTo(x + 15, 0); ctx.fill();
+                ctx.beginPath(); ctx.moveTo(x, 500); ctx.lineTo(x + 7.5, 485); ctx.lineTo(x + 15, 500); ctx.fill();
+            }
+
+            if (gameState === 'MENU') return requestAnimationFrame(draw);
+            
+            // ✨ 繪製粒子效果
+            particles.forEach(p => {
+                ctx.save(); ctx.globalAlpha = p.alpha; ctx.fillStyle = p.color;
+                ctx.fillRect(p.x, p.y, p.size, p.size); ctx.restore();
+            });
+
+            // 👹 Boss 戰血條重製（絢麗紫色漸層）
+            if (bossActive) {
+                let bGrad = ctx.createLinearGradient(50, 0, 350, 0);
+                bGrad.addColorStop(0, '#8e44ad'); bGrad.addColorStop(1, '#d000ff');
+                ctx.fillStyle = "rgba(20, 10, 30, 0.6)"; ctx.fillRect(50, 15, 300, 8);
+                ctx.fillStyle = bGrad; ctx.fillRect(50, 15, (bossHP/100)*300, 8);
+            }
+
+            // 💚 玩家血條重製（摩登圓角風格感官）
+            ctx.fillStyle = "rgba(20, 20, 20, 0.7)"; ctx.fillRect(50, 30, 300, 14);
+            let hpGrad = ctx.createLinearGradient(50, 0, 350, 0);
+            if(player.hp > 30) { hpGrad.addColorStop(0, '#2ecc71'); hpGrad.addColorStop(1, '#27ae60'); }
+            else { hpGrad.addColorStop(0, '#e74c3c'); hpGrad.addColorStop(1, '#c0392b'); }
+            ctx.fillStyle = hpGrad; ctx.fillRect(50, 30, (player.hp/100)*300, 14);
+            
+            // UI 文字
+            ctx.fillStyle = "white"; ctx.font = "bold 11px Arial"; ctx.textAlign = "center";
+            let flightText = player.flightTimer > 0 ? ` [FLYING: ${Math.ceil(player.flightTimer)}s]` : "";
+            ctx.fillText(`FLOORS: ${platformsLanded} | HP: ${Math.ceil(player.hp)}%${flightText}`, 200, 41);
+
+            // ☄️ 繪製危險紅柱
+            pillars.forEach(p => { 
+                ctx.fillStyle = "#ff3333"; ctx.fillRect(p.x, p.y, p.width, p.height); 
+                ctx.fillStyle = "#fff"; ctx.fillRect(p.x+8, p.y+4, p.width-16, p.height-8); 
+            });
+            
+            // 🕹️ 繪製玩家本體（加強發光質感）
+            let isInvincible = player.isBoosting || player.isFloating;
+            ctx.save();
+            if (isInvincible) { ctx.shadowBlur = 18; ctx.shadowColor = "#0ff"; ctx.fillStyle = "#0ff"; } 
+            else if (player.flightTimer > 0) { ctx.shadowBlur = 18; ctx.shadowColor = "#FFD700"; ctx.fillStyle = "#FFD700"; } 
+            else { ctx.shadowBlur = 4; ctx.shadowColor = "rgba(0,0,0,0.5)"; ctx.fillStyle = "#fff"; }
+            ctx.fillRect(player.x, player.y, player.width, player.height); 
+            ctx.restore();
+
+            // 🏢 繪製精美霓虹平台
+            platforms.forEach(p => {
+                if (!p.active) return;
+                ctx.save();
+                
+                if (p.type === 'conveyor') {
+                    ctx.fillStyle = "#f1c40f"; ctx.fillRect(p.x, p.y, p.width, p.height);
+                    ctx.fillStyle = "#222"; for(let i=0; i<p.width; i+=20) { ctx.fillRect(p.x + i, p.y, 8, p.height); }
+                    ctx.fillStyle = "#e74c3c"; ctx.font = "bold 14px Arial"; 
+                    ctx.fillText(p.dir === 1 ? "→" : "←", p.x + p.width/2, p.y + p.height + 14);
+                } else {
+                    if (p.type === 'bossDamage') { ctx.fillStyle = "#fff"; ctx.shadowBlur = 15; ctx.shadowColor = "#fff"; }
+                    else if (p.type === 'spike') { ctx.fillStyle = "#e74c3c"; ctx.shadowBlur = 8; ctx.shadowColor = "#e74c3c"; }
+                    else if (p.type === 'jump') { ctx.fillStyle = "#ff8c00"; ctx.shadowBlur = 8; ctx.shadowColor = "#ff8c00"; }
+                    else if (p.type === 'freeze') { ctx.fillStyle = "#7ed6df"; ctx.shadowBlur = 8; ctx.shadowColor = "#7ed6df"; } 
+                    else if (p.type === 'heal') { ctx.fillStyle = "#2ecc71"; ctx.shadowBlur = 10; ctx.shadowColor = "#2ecc71"; }
+                    else if (p.type === 'flight') { ctx.fillStyle = "#f1c40f"; ctx.shadowBlur = 15; ctx.shadowColor = "#f1c40f"; }
+                    else ctx.fillStyle = "#7f8c8d"; // 普通
+                    
+                    ctx.fillRect(p.x, p.y, p.width, p.height);
+                    
+                    // 繪製刺針幾何形狀
+                    if (p.type === 'spike') {
+                        ctx.fillStyle = "#c0392b";
+                        for(let i=0; i<p.width; i+=10) { ctx.beginPath(); ctx.moveTo(p.x + i, p.y); ctx.lineTo(p.x + i + 5, p.y - 6); ctx.lineTo(p.x + i + 10, p.y); ctx.fill(); }
+                    }
+                }
+                ctx.restore();
+            });
+            
+            update(); requestAnimationFrame(draw);
+        }
+        draw();
+    </script>
+</body>
+</html>
